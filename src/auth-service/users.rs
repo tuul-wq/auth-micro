@@ -1,11 +1,12 @@
-use pbkdf2::{
-    Pbkdf2,
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-};
-use rand_core::OsRng;
 use uuid::Uuid;
 
 use std::collections::HashMap;
+
+use pbkdf2::{
+    Pbkdf2,
+    password_hash::{PasswordHasher, PasswordVerifier},
+    phc::PasswordHash,
+};
 
 pub trait Users {
     fn create_user(&mut self, username: String, password: String) -> Result<(), String>;
@@ -30,10 +31,8 @@ impl Users for UsersImpl {
     fn create_user(&mut self, username: String, password: String) -> Result<(), String> {
         // TODO: Check if username already exist. If so return an error.
 
-        let salt = SaltString::generate(&mut OsRng);
-
-        let hashed_password = Pbkdf2
-            .hash_password(password.as_bytes(), &salt)
+        let hashed_password = Pbkdf2::default()
+            .hash_password(password.as_bytes())
             .map_err(|e| format!("Failed to hash password.\n{e:?}"))?
             .to_string();
 
@@ -52,7 +51,7 @@ impl Users for UsersImpl {
         let parsed_hash = PasswordHash::new(&hashed_password).ok()?;
 
         // Verify passed in password matches user's password.
-        let result = Pbkdf2.verify_password(password.as_bytes(), &parsed_hash);
+        let result = Pbkdf2::default().verify_password(password.as_bytes(), &parsed_hash);
 
         // TODO: If the username and password passed in matches the user's username and password return the user's uuid.
 
