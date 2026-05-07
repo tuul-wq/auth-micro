@@ -16,13 +16,13 @@ name = "health-check"
 path = "src/health-check-service/main.rs"
 
 [dependencies]
-clap = { version = "4.6.1", features = ["derive"] }
-pbkdf2 = { version = "0.13.0", features = ["simple"] }
-prost = "0.14.3"
-rand_core = { version = "0.10.1", features = ["std"] }
-tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread", "time"] }
 tonic = "0.14.6"
+prost = "0.14.3"
+tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread", "time"] }
 uuid = { version = "1.23.1", features = ["v4"] }
+pbkdf2 = "0.13.0"
+rand_core = "0.10.1"
+clap = { version = "4.6.1", features = ["derive"] }
 
 [build-dependencies]
-tonic_build = "0.14.6"
+tonic-prost-build = "0.14.6"
