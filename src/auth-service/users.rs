@@ -29,37 +29,44 @@ pub struct UsersImpl {
 
 impl Users for UsersImpl {
     fn create_user(&mut self, username: String, password: String) -> Result<(), String> {
-        // TODO: Check if username already exist. If so return an error.
+        if self.username_to_user.contains_key(&username) {
+            return Err("Username already exists.".to_string());
+        }
 
-        let hashed_password = Pbkdf2::default()
-            .hash_password(password.as_bytes())
-            .map_err(|e| format!("Failed to hash password.\n{e:?}"))?
-            .to_string();
+        let user = User {
+            username,
+            user_uuid: Uuid::new_v4().to_string(),
+            password: Pbkdf2::default()
+                .hash_password(password.as_bytes())
+                .map_err(|_| "Failed to hash password.")?
+                .to_string(),
+        };
 
-        let user: User = todo!(); // Create new user with unique uuid and hashed password.
-
-        // TODO: Add user to `username_to_user` and `uuid_to_user`.
+        self.uuid_to_user
+            .insert(user.user_uuid.clone(), user.clone());
+        self.username_to_user
+            .insert(user.username.clone(), user.clone());
 
         Ok(())
     }
 
     fn get_user_uuid(&self, username: &str, password: &str) -> Option<String> {
-        let user: &User = todo!(); // Retrieve `User` or return `None` is user can't be found.
+        let Some(user) = self.username_to_user.get(username) else {
+            return None;
+        };
 
-        // Get user's password as `PasswordHash` instance.
-        let hashed_password = user.password.clone();
-        let parsed_hash = PasswordHash::new(&hashed_password).ok()?;
+        let parsed_hash = PasswordHash::new(&user.password).ok()?;
 
-        // Verify passed in password matches user's password.
-        let result = Pbkdf2::default().verify_password(password.as_bytes(), &parsed_hash);
-
-        // TODO: If the username and password passed in matches the user's username and password return the user's uuid.
-
-        None
+        Pbkdf2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .ok()
+            .map(|_| user.user_uuid.clone())
     }
 
     fn delete_user(&mut self, user_uuid: String) {
-        // TODO: Remove user from `username_to_user` and `uuid_to_user`.
+        if let Some(user) = self.uuid_to_user.remove(&user_uuid) {
+            self.username_to_user.remove(&user.username);
+        }
     }
 }
 

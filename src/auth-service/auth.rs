@@ -45,17 +45,31 @@ impl Auth for AuthService {
 
         let req = request.into_inner();
 
-        let result: Option<String> = todo!(); // Get user's uuid from `users_service`. Panic if the lock is poisoned.
+        let user_uuid = self
+            .users_service
+            .lock()
+            .map_err(|_| Status::internal("Failed to lock users service"))?
+            .get_user_uuid(&req.username, &req.password);
 
-        // Match on `result`. If `result` is `None` return a SignInResponse with a the `status_code` set to `Failure`
-        // and `user_uuid`/`session_token` set to empty strings.
-        let user_uuid: String = todo!();
+        let Some(user_uuid) = user_uuid else {
+            return Ok(Response::new(SignInResponse {
+                status_code: StatusCode::Failure.into(),
+                user_uuid: String::default(),
+                session_token: String::default(),
+            }));
+        };
 
-        let session_token: String = todo!(); // Create new session using `sessions_service`. Panic if the lock is poisoned.
+        let session_token = self
+            .sessions_service
+            .lock()
+            .map_err(|_| Status::internal("Failed to lock session service"))?
+            .create_session(&user_uuid);
 
-        let reply: SignInResponse = todo!(); // Create a `SignInResponse` with `status_code` set to `Success`
-
-        Ok(Response::new(reply))
+        Ok(Response::new(SignInResponse {
+            status_code: StatusCode::Success.into(),
+            user_uuid,
+            session_token,
+        }))
     }
 
     async fn sign_up(
@@ -66,17 +80,15 @@ impl Auth for AuthService {
 
         let req = request.into_inner();
 
-        let result: Result<(), String> = todo!(); // Create a new user through `users_service`. Panic if the lock is poisoned.
+        self.users_service
+            .lock()
+            .map_err(|_| Status::internal("Failed to lock users service"))?
+            .create_user(req.username, req.password)
+            .map_err(|_| Status::internal("Failed to create user"))?;
 
-        // TODO: Return a `SignUpResponse` with the appropriate `status_code` based on `result`.
-        match result {
-            Ok(_) => {
-                todo!()
-            }
-            Err(_) => {
-                todo!()
-            }
-        }
+        Ok(Response::new(SignUpResponse {
+            status_code: StatusCode::Success.into(),
+        }))
     }
 
     async fn sign_out(
@@ -85,13 +97,14 @@ impl Auth for AuthService {
     ) -> Result<Response<SignOutResponse>, Status> {
         println!("Got a request: {:?}", request);
 
-        let req = request.into_inner();
+        self.sessions_service
+            .lock()
+            .map_err(|_| Status::internal("Failed to lock sessions service"))?
+            .delete_session(&request.into_inner().session_token);
 
-        // TODO: Delete session using `sessions_service`.
-
-        let reply: SignOutResponse = todo!(); // Create `SignOutResponse` with `status_code` set to `Success`
-
-        Ok(Response::new(reply))
+        Ok(Response::new(SignOutResponse {
+            status_code: StatusCode::Success.into(),
+        }))
     }
 }
 
