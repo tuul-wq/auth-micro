@@ -51,9 +51,7 @@ impl Users for UsersImpl {
     }
 
     fn get_user_uuid(&self, username: &str, password: &str) -> Option<String> {
-        let Some(user) = self.username_to_user.get(username) else {
-            return None;
-        };
+        let user = self.username_to_user.get(username)?;
 
         let parsed_hash = PasswordHash::new(&user.password).ok()?;
 

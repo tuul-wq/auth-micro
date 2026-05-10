@@ -80,15 +80,20 @@ impl Auth for AuthService {
 
         let req = request.into_inner();
 
-        self.users_service
+        let res = self
+            .users_service
             .lock()
             .map_err(|_| Status::internal("Failed to lock users service"))?
-            .create_user(req.username, req.password)
-            .map_err(|_| Status::internal("Failed to create user"))?;
+            .create_user(req.username, req.password);
 
-        Ok(Response::new(SignUpResponse {
-            status_code: StatusCode::Success.into(),
-        }))
+        match res {
+            Ok(_) => Ok(Response::new(SignUpResponse {
+                status_code: StatusCode::Success.into(),
+            })),
+            Err(_) => Ok(Response::new(SignUpResponse {
+                status_code: StatusCode::Failure.into(),
+            })),
+        }
     }
 
     async fn sign_out(
