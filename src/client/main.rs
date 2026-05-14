@@ -1,81 +1,83 @@
-fn main() {
-    println!("client");
+use clap::{Parser, Subcommand};
+use std::env;
+
+use authentication::auth_client::AuthClient;
+use authentication::{SignInRequest, SignOutRequest, SignUpRequest};
+use tonic::Request;
+
+use crate::authentication::{SignInResponse, SignOutResponse, SignUpResponse};
+
+pub mod authentication {
+    tonic::include_proto!("authentication");
 }
 
-// use clap::{Parser, Subcommand};
-// use std::env;
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
 
-// use authentication::auth_client::AuthClient;
-// use authentication::{SignInRequest, SignOutRequest, SignUpRequest};
-// use tonic::transport::Channel;
-// use tonic::{Request, Response};
+#[derive(Subcommand)]
+enum Commands {
+    SignIn {
+        #[arg(short, long)]
+        username: String,
+        #[arg(short, long)]
+        password: String,
+    },
+    SignUp {
+        #[arg(short, long)]
+        username: String,
+        #[arg(short, long)]
+        password: String,
+    },
+    SignOut {
+        #[arg(short, long)]
+        session_token: String,
+    },
+}
 
-// use crate::authentication::{SignInResponse, SignOutResponse, SignUpResponse};
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // AUTH_SERVICE_IP can be set to your droplet's ip address once your app is deployed
+    let auth_ip = env::var("AUTH_SERVICE_IP").unwrap_or("[::0]".to_owned());
+    let mut client = AuthClient::connect(format!("http://{}:50051", auth_ip)).await?;
 
-// pub mod authentication {
-//     tonic::include_proto!("authentication");
-// }
+    let cli = Cli::parse();
 
-// #[derive(Parser)]
-// #[command(version, about, long_about = None)]
-// struct Cli {
-//     #[command(subcommand)]
-//     command: Option<Commands>,
-// }
+    match &cli.command {
+        Some(Commands::SignIn { username, password }) => {
+            let request = Request::new(SignInRequest {
+                username: username.to_owned(),
+                password: password.to_owned(),
+            });
 
-// #[derive(Subcommand)]
-// enum Commands {
-//     SignIn {
-//         #[arg(short, long)]
-//         username: String,
-//         #[arg(short, long)]
-//         password: String,
-//     },
-//     SignUp {
-//         #[arg(short, long)]
-//         username: String,
-//         #[arg(short, long)]
-//         password: String,
-//     },
-//     SignOut {
-//         #[arg(short, long)]
-//         session_token: String,
-//     },
-// }
+            let response: SignInResponse = client.sign_in(request).await?.into_inner();
 
-// #[tokio::main]
-// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     // AUTH_SERVICE_IP can be set to your droplet's ip address once your app is deployed
-//     let auth_ip = env::var("AUTH_SERVICE_IP").unwrap_or("[::0]".to_owned());
-//     let mut client: AuthClient<Channel> = todo!(); // Create new `AuthClient` instance. Propagate any errors.
+            println!("{:?}", response);
+        }
+        Some(Commands::SignUp { username, password }) => {
+            let request: Request<SignUpRequest> = Request::new(SignUpRequest {
+                username: username.to_owned(),
+                password: password.to_owned(),
+            });
 
-//     let cli = Cli::parse();
+            let response: SignUpResponse = client.sign_up(request).await?.into_inner();
 
-//     match &cli.command {
-//         Some(Commands::SignIn { username, password }) => {
-//             let request: Request<SignInRequest> = todo!(); // Create a new `SignInRequest`.
+            println!("{:?}", response);
+        }
+        Some(Commands::SignOut { session_token }) => {
+            let request: Request<SignOutRequest> = Request::new(SignOutRequest {
+                session_token: session_token.to_owned(),
+            });
 
-//             // Make a sign in request. Propagate any errors. Convert Response<SignInResponse> into SignInResponse.
-//             let response: SignInResponse = todo!();
+            let response: SignOutResponse = client.sign_out(request).await?.into_inner();
 
-//             println!("{:?}", response);
-//         }
-//         Some(Commands::SignUp { username, password }) => {
-//             let request: Request<SignUpRequest> = todo!(); // Create a new `SignUpRequest`.
+            println!("{:?}", response);
+        }
+        None => {}
+    }
 
-//             let response: Response<SignUpResponse> = todo!(); // Make a sign up request. Propagate any errors.
-
-//             println!("{:?}", response.into_inner());
-//         }
-//         Some(Commands::SignOut { session_token }) => {
-//             let request: Request<SignOutRequest> = todo!(); // Create a new `SignOutRequest`.
-
-//             let response: Response<SignOutResponse> = todo!(); // Make a sign out request. Propagate any errors.
-
-//             println!("{:?}", response.into_inner());
-//         }
-//         None => {}
-//     }
-
-//     Ok(())
-// }
+    Ok(())
+}
